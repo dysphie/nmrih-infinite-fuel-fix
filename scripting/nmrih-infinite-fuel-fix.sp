@@ -1,4 +1,3 @@
-
 #include <sdktools>
 #include <sdkhooks>
 
@@ -6,8 +5,8 @@ public Plugin myinfo =
 {
     name        = "[NMRiH] Infinite Fuel Fix",
     author      = "Dysphie",
-    description = "",
-    version     = "0.1.0",
+    description = "Fix infinite fuel when using inventory box",
+    version     = "0.1.1",
     url         = ""
 };
 
@@ -23,18 +22,39 @@ public Action ItemBoxOpen(UserMsg msg, BfRead bf, const int[] players, int playe
 		if (!IsValidClient(players[i]))
 			continue;
 
-		int wep = GetEntPropEnt(players[i], Prop_Send, "m_hActiveWeapon");
-		if (wep != -1 && HasEntProp(wep, Prop_Send, "m_bSawing"))
-		{
-			SDKHooks_DropWeapon(players[i], wep);
-			EquipPlayerWeapon(players[i], wep);
-			SetEntPropEnt(players[i], Prop_Send, "m_hActiveWeapon", wep);
-		}
+		int weapon = GetEntPropEnt(players[i], Prop_Send, "m_hActiveWeapon");
+		if (weapon == -1)
+			continue;
+
+		char classname[32];
+		GetEntityClassname(weapon, classname, sizeof(classname));
+
+		if (StrEqual(classname, "me_chainsaw") || StrEqual(classname, "me_abrasivesaw"))
+			RequestFrame(TurnOff, EntIndexToEntRef(weapon));
 	}
+
 	return Plugin_Continue;
 }
 
-stock bool IsValidClient(int client)
+bool IsValidClient(int client)
 {
     return 0 < client <= MaxClients && IsClientInGame(client);
+}
+
+void TurnOff(int chainsawRef)
+{
+	int chainsaw = EntRefToEntIndex(chainsawRef);
+	if (chainsaw == -1)
+		return;
+
+	int owner = GetEntPropEnt(chainsaw, Prop_Send, "m_hOwner");
+	if (owner == -1)
+		return;
+
+	SetEntProp(chainsaw, Prop_Send, "m_bTurnedOn", 0);
+	SetEntProp(chainsaw, Prop_Send, "m_bSawing", 0);
+
+	int viewmodel = GetEntPropEnt(owner, Prop_Send, "m_hViewModel", 0);
+	if (viewmodel != -1)
+		SetEntProp(viewmodel, Prop_Send, "m_nSkin", 0);
 }
